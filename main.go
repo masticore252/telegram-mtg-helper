@@ -21,10 +21,9 @@ func main() {
 func makeBot() (*tb.Bot, error) {
 
 	// url that the web server will listen to this address
-	url := os.Getenv("URL")
 	port := os.Getenv("PORT")
 	route := os.Getenv("ROUTE")
-	listen := fmt.Sprintf("%s:%s/%s", url, port, route)
+	listen := fmt.Sprintf(":%s/%s", port, route)
 
 	// the webhook to be set to telegram API using setWebhook method
 	webhook := os.Getenv("WEBHOOK_URL") + route
