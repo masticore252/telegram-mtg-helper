@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"time"
 
 	scryfall "github.com/BlueMonday/go-scryfall"
 	env "github.com/joho/godotenv"
@@ -21,28 +20,35 @@ func main() {
 
 func makeBot() (*tb.Bot, error) {
 
-	Url := os.Getenv("TELEGRAM_API_URL")
+	// url that the web server will listen to this address
+	url := os.Getenv("URL")
+	port := os.Getenv("PORT")
+	route := os.Getenv("ROUTE")
+	listen := fmt.Sprintf("%s:%s/%s", url, port, route)
+
+	// the webhook to be set to telegram API using setWebhook method
+	webhook := os.Getenv("WEBHOOK_URL") + route
+
+	Api := os.Getenv("TELEGRAM_API_URL")
 	token := os.Getenv("TELEGRAM_TOKEN")
 	isVerbose, _ := strconv.ParseBool(os.Getenv("VERBOSE_OUTPUT"))
 
 	devMessage := "_\\(this bot is still in active development, reach to @masticore252 if you have any comments or suggestions\\)_"
 
 	bot, _ := tb.NewBot(tb.Settings{
-		URL:       Url,
+		URL:       Api,
 		Token:     token,
 		Verbose:   isVerbose,
 		ParseMode: tb.ModeMarkdownV2,
 
 		// Poller for getUpdates mode
-		Poller: &tb.LongPoller{Timeout: 10 * time.Second},
+		// Poller: &tb.LongPoller{Timeout: 10 * time.Second},
 
 		// Poller for WebHook mode
-		// Poller: &tb.Webhook{
-		// 	Listen:        "http://127.0.0.1:8080",
-		// 	Endpoint:      &tb.WebhookEndpoint{PublicURL: ""},
-		// 	HasCustomCert: false,
-		// },
-
+		Poller: &tb.Webhook{
+			Listen:   listen,
+			Endpoint: &tb.WebhookEndpoint{PublicURL: webhook},
+		},
 	})
 
 	// Handle inline queries
