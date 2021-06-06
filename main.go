@@ -47,10 +47,10 @@ func makeBot() (*tb.Bot, error) {
 
 			if isDoubleFacedLayout(card.Layout) {
 
-				for i, face := range card.CardFaces {
+				for j, face := range card.CardFaces {
 					singleResult := makeResultFromFace(face)
-					results[i] = singleResult
-					results[i].SetResultID(card.ID + fmt.Sprintf("-face-%v", i))
+					results[j] = singleResult
+					results[j].SetResultID(card.ID + fmt.Sprintf("-face-%d", j))
 				}
 
 			} else {
