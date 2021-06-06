@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	scryfall "github.com/BlueMonday/go-scryfall"
 	env "github.com/joho/godotenv"
@@ -20,35 +21,20 @@ func main() {
 
 func makeBot() (*tb.Bot, error) {
 
-	// url that the web server will listen to this address
-	port := os.Getenv("PORT")
-	route := os.Getenv("ROUTE")
-	listen := fmt.Sprintf(":%s/%s", port, route)
-
-	// the webhook to be set to telegram API using setWebhook method
-	webhook := os.Getenv("WEBHOOK_URL") + route
-
 	Api := os.Getenv("TELEGRAM_API_URL")
 	token := os.Getenv("TELEGRAM_TOKEN")
+	poller := makePoller()
 	isVerbose, _ := strconv.ParseBool(os.Getenv("VERBOSE_OUTPUT"))
-
-	devMessage := "_\\(this bot is still in active development, reach to @masticore252 if you have any comments or suggestions\\)_"
 
 	bot, _ := tb.NewBot(tb.Settings{
 		URL:       Api,
 		Token:     token,
+		Poller:    poller,
 		Verbose:   isVerbose,
 		ParseMode: tb.ModeMarkdownV2,
-
-		// Poller for getUpdates mode
-		// Poller: &tb.LongPoller{Timeout: 10 * time.Second},
-
-		// Poller for WebHook mode
-		Poller: &tb.Webhook{
-			Listen:   listen,
-			Endpoint: &tb.WebhookEndpoint{PublicURL: webhook},
-		},
 	})
+
+	devMessage := "_\\(this bot is still in active development, send a message to @masticore252 if you have any comments or suggestions\\)_"
 
 	// Handle inline queries
 	bot.Handle(tb.OnQuery, func(q *tb.Query) {
@@ -94,8 +80,8 @@ func makeBot() (*tb.Bot, error) {
 			"Hi\\! I'm a Magic: the gathering bot\n\n",
 			"I can help you find your favorite cards\n",
 			"just open any of your chats and type\n\n",
-			"_\"@MTGhelperBot Jace\"_ \\(or your favorite card name\\)\n\n",
-			"I'll show a list of search results from scryfall\\.com\n",
+			"_\"@MTGhelperBot Jace\" \n\\(or your favorite card name\\)_\n\n",
+			"I'll show a list of search results from scryfall\\.com, ",
 			"tap one to preview it, then tap ✅ to send it\n",
 			"Easy peasy\\!\n\n",
 			"I support more complex querys, type /help to know more\n\n",
@@ -115,6 +101,22 @@ func makeBot() (*tb.Bot, error) {
 	})
 
 	return bot, nil
+}
+
+func makePoller() tb.Poller {
+
+	if pollerMode := os.Getenv("POLLER_MODE"); pollerMode == "webhook" {
+		port := os.Getenv("PORT")
+		route := os.Getenv("ROUTE")
+		// url that the web server will listen to
+		listen := fmt.Sprintf(":%s/%s", port, route)
+		// the webhook to be set to telegram API using setWebhook method
+		webhook := os.Getenv("WEBHOOK_URL") + route
+
+		return &tb.Webhook{Listen: listen, Endpoint: &tb.WebhookEndpoint{PublicURL: webhook}}
+	}
+
+	return &tb.LongPoller{Timeout: 10 * time.Second}
 }
 
 func cardSearch(query string) ([]scryfall.Card, error) {
