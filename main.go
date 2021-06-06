@@ -25,6 +25,8 @@ func makeBot() (*tb.Bot, error) {
 	token := os.Getenv("TELEGRAM_TOKEN")
 	isVerbose, _ := strconv.ParseBool(os.Getenv("VERBOSE_OUTPUT"))
 
+	devMessage := "_\\(this bot is still in active development, reach to @masticore252 if you have any comments or suggestions\\)_"
+
 	bot, _ := tb.NewBot(tb.Settings{
 		URL:       Url,
 		Token:     token,
@@ -83,7 +85,7 @@ func makeBot() (*tb.Bot, error) {
 	// Handle /start command
 	bot.Handle("/start", func(m *tb.Message) {
 		message := fmt.Sprint(
-			"_\\(this bot is still in active development, reach to @masticore if you have any comments or suggestions\\)_\n\n",
+			devMessage+"\n\n",
 			"Hi\\! I'm a Magic: the gathering bot\n\n",
 			"I can help you find your favorite cards\n",
 			"just open any of your chats and type\n\n",
@@ -99,13 +101,12 @@ func makeBot() (*tb.Bot, error) {
 
 	// Handle /help command
 	bot.Handle("/help", func(m *tb.Message) {
-		message := "_this bot is still in active development, reach to @masticore if you have any comments or suggestions_"
-		bot.Send(m.Chat, message)
+		bot.Send(m.Chat, devMessage)
 	})
 
 	// Handle all other messages
 	bot.Handle(tb.OnText, func(m *tb.Message) {
-		bot.Send(m.Chat, "_This bot is still in active development, contact @masticore for comments, suggestions, or to know when the bot is ready_")
+		bot.Send(m.Chat, devMessage)
 	})
 
 	return bot, nil
