@@ -13,3 +13,12 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+
+# environment file used in development
+.env
+
+# Visual Studio Code configuration folder
+/.vscode
+
+# binary generated when the project is build
+telegram-mtg-helper*
