@@ -21,7 +21,7 @@ func main() {
 
 func makeBot() (*tb.Bot, error) {
 
-	Url := "https://api.telegram.org"
+	Url := os.Getenv("TELEGRAM_API_URL")
 	token := os.Getenv("TELEGRAM_TOKEN")
 	isVerbose, _ := strconv.ParseBool(os.Getenv("VERBOSE_OUTPUT"))
 
@@ -31,6 +31,9 @@ func makeBot() (*tb.Bot, error) {
 		Verbose:   isVerbose,
 		ParseMode: tb.ModeMarkdownV2,
 
+		// Poller for getUpdates mode
+		Poller: &tb.LongPoller{Timeout: 10 * time.Second},
+
 		// Poller for WebHook mode
 		// Poller: &tb.Webhook{
 		// 	Listen:        "http://127.0.0.1:8080",
@@ -38,8 +41,6 @@ func makeBot() (*tb.Bot, error) {
 		// 	HasCustomCert: false,
 		// },
 
-		// Poller for getUpdates mode
-		Poller: &tb.LongPoller{Timeout: 10 * time.Second},
 	})
 
 	// Handle inline queries
