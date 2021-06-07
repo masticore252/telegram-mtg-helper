@@ -39,12 +39,25 @@ func makeBot() (*tb.Bot, error) {
 	// Handle inline queries
 	bot.Handle(tb.OnQuery, func(q *tb.Query) {
 
-		cards, _ := cardSearch(q.Text)
-
 		results := tb.Results{}
 
-		for _, card := range cards {
+		if len(q.Text) == 0 {
+			return
+		}
 
+		cards, _ := cardSearch(q.Text)
+
+		if len(cards) == 0 {
+			emptyResult := &tb.ArticleResult{
+				Title:       "No results",
+				Description: "Your query returned no results",
+				Text:        "Your query returned no results",
+			}
+			emptyResult.SetResultID("0")
+			results = append(results, emptyResult)
+		}
+
+		for _, card := range cards {
 			if isDoubleFacedLayout(card.Layout) {
 
 				for index, face := range card.CardFaces {
@@ -58,7 +71,6 @@ func makeBot() (*tb.Bot, error) {
 				results = append(results, singleResult)
 
 			}
-
 		}
 
 		err := bot.Answer(q, &tb.QueryResponse{
