@@ -41,23 +41,21 @@ func makeBot() (*tb.Bot, error) {
 
 		cards, _ := cardSearch(q.Text)
 
-		results := make(tb.Results, len(cards))
+		results := tb.Results{}
 
-		for i, card := range cards {
+		for _, card := range cards {
 
 			if isDoubleFacedLayout(card.Layout) {
 
-				for j, face := range card.CardFaces {
-					singleResult := makeResultFromFace(face)
-					results[j] = singleResult
-					results[j].SetResultID(card.ID + fmt.Sprintf("-face-%d", j))
+				for index, face := range card.CardFaces {
+					singleResult := newResultFromFace(face, card.ID, index)
+					results = append(results, singleResult)
 				}
 
 			} else {
 
-				result := makeResultFromCard(card)
-				results[i] = result
-				results[i].SetResultID(card.ID)
+				singleResult := newResultFromCard(card)
+				results = append(results, singleResult)
 
 			}
 
@@ -168,16 +166,21 @@ func isDoubleFacedLayout(layout scryfall.Layout) bool {
 	return false
 }
 
-func makeResultFromCard(card scryfall.Card) *tb.PhotoResult {
-	return &tb.PhotoResult{
+func newResultFromCard(card scryfall.Card) *tb.PhotoResult {
+	result := &tb.PhotoResult{
 		URL:      card.ImageURIs.Normal,
 		ThumbURL: card.ImageURIs.Small,
 	}
+	result.SetResultID(card.ID)
+	return result
 }
 
-func makeResultFromFace(face scryfall.CardFace) *tb.PhotoResult {
-	return &tb.PhotoResult{
+func newResultFromFace(face scryfall.CardFace, cardID string, faceIndex int) *tb.PhotoResult {
+	result := &tb.PhotoResult{
 		URL:      face.ImageURIs.Normal,
 		ThumbURL: face.ImageURIs.Small,
 	}
+	faceID := fmt.Sprintf("%s-face-%d", cardID, faceIndex)
+	result.SetResultID(faceID)
+	return result
 }
