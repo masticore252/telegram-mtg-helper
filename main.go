@@ -60,10 +60,9 @@ func makeBot() (*tb.Bot, error) {
 		for _, card := range cards {
 			if isDoubleFacedLayout(card.Layout) {
 
-				for index, face := range card.CardFaces {
-					singleResult := newResultFromFace(face, card.ID, index)
-					results = append(results, singleResult)
-				}
+				backFace := newResultFromFace(card, 0)
+				frontFace := newResultFromFace(card, 1)
+				results = append(results, frontFace, backFace)
 
 			} else {
 
@@ -115,7 +114,7 @@ func makeBot() (*tb.Bot, error) {
 
 func makePoller() tb.Poller {
 
-	if pollerMode := os.Getenv("POLLER_MODE"); pollerMode == "webhook" {
+	if os.Getenv("POLLER_MODE") == "webhook" {
 		port := os.Getenv("PORT")
 		route := os.Getenv("ROUTE")
 		// url that the web server will listen to
@@ -187,12 +186,13 @@ func newResultFromCard(card scryfall.Card) *tb.PhotoResult {
 	return result
 }
 
-func newResultFromFace(face scryfall.CardFace, cardID string, faceIndex int) *tb.PhotoResult {
+func newResultFromFace(card scryfall.Card, faceIndex int) *tb.PhotoResult {
+	face := card.CardFaces[faceIndex]
 	result := &tb.PhotoResult{
 		URL:      face.ImageURIs.Normal,
 		ThumbURL: face.ImageURIs.Small,
 	}
-	faceID := fmt.Sprintf("%s-face-%d", cardID, faceIndex)
+	faceID := fmt.Sprintf("%s-face-%d", card.ID, faceIndex)
 	result.SetResultID(faceID)
 	return result
 }
