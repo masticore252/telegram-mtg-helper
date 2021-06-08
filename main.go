@@ -181,18 +181,41 @@ func newResultFromCard(card scryfall.Card) *tb.PhotoResult {
 	result := &tb.PhotoResult{
 		URL:      card.ImageURIs.Normal,
 		ThumbURL: card.ImageURIs.Small,
+		ResultBase: tb.ResultBase{
+			ID:          card.ID,
+			ReplyMarkup: makeReplyMarkup(card),
+		},
 	}
-	result.SetResultID(card.ID)
 	return result
 }
 
 func newResultFromFace(card scryfall.Card, faceIndex int) *tb.PhotoResult {
 	face := card.CardFaces[faceIndex]
+	faceID := fmt.Sprintf("%s-face-%d", card.ID, faceIndex)
+
 	result := &tb.PhotoResult{
 		URL:      face.ImageURIs.Normal,
 		ThumbURL: face.ImageURIs.Small,
+		ResultBase: tb.ResultBase{
+			ID:          faceID,
+			ReplyMarkup: makeReplyMarkup(card),
+		},
 	}
-	faceID := fmt.Sprintf("%s-face-%d", card.ID, faceIndex)
-	result.SetResultID(faceID)
 	return result
+}
+
+func makeReplyMarkup(card scryfall.Card) *tb.InlineKeyboardMarkup {
+
+	button := tb.InlineButton{Text: "Card Details", URL: card.ScryfallURI}
+
+	matrix := [][]tb.InlineButton{
+		{
+			button,
+		},
+	}
+
+	return &tb.InlineKeyboardMarkup{
+		InlineKeyboard: matrix,
+	}
+
 }
