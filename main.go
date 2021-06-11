@@ -154,7 +154,7 @@ func cardSearch(query string) ([]scryfall.Card, error) {
 	}
 
 	// show no more than 50 results, as per telegram's limitation of inline queries
-	max := 51
+	max := 50
 
 	if length := len(result.Cards); length < 50 {
 		max = length
