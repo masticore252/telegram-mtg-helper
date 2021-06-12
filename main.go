@@ -13,6 +13,15 @@ import (
 	tb "gopkg.in/tucnak/telebot.v2"
 )
 
+const startMessage = "Hi! I'm your Magic: the gathering bot, I work in inline mode to search for Magic: The Gathering cards in scryfall.com\n" +
+	"I support advanced syntax to filter results like color, type, artist, mana value, etc\n\n" +
+	"tap the button bellow to start using me\n" +
+	"type /help to learn more about inline bots and the advanced syntax you can use to filter your searches"
+
+const helpMessage = "Helpful links:"
+
+const defaultMessage = "I only work in inline mode, tab the button to search \"%s\""
+
 func main() {
 	env.Load()
 	bot, _ := makeBot()
@@ -23,7 +32,7 @@ func makeBot() (*tb.Bot, error) {
 
 	Api := os.Getenv("TELEGRAM_API_URL")
 	token := os.Getenv("TELEGRAM_TOKEN")
-	poller := makePoller()
+	poller := makePoller(os.Getenv("POLLER_MODE"))
 	isVerbose, _ := strconv.ParseBool(os.Getenv("VERBOSE_OUTPUT"))
 
 	bot, _ := tb.NewBot(tb.Settings{
@@ -31,10 +40,8 @@ func makeBot() (*tb.Bot, error) {
 		Token:     token,
 		Poller:    poller,
 		Verbose:   isVerbose,
-		ParseMode: tb.ModeMarkdownV2,
+		ParseMode: tb.ModeHTML,
 	})
-
-	devMessage := "_\\(this bot is still in active development, send a message to @masticore252 if you have any comments or suggestions\\)_"
 
 	// Handle inline queries
 	bot.Handle(tb.OnQuery, func(q *tb.Query) {
@@ -84,37 +91,34 @@ func makeBot() (*tb.Bot, error) {
 
 	// Handle /start command
 	bot.Handle("/start", func(m *tb.Message) {
-		message := fmt.Sprint(
-			devMessage+"\n\n",
-			"Hi\\! I'm a Magic: the gathering bot\n\n",
-			"I can help you find your favorite cards\n",
-			"just open any of your chats and type\n\n",
-			"_\"@MTGhelperBot Jace\" \n\\(or your favorite card name\\)_\n\n",
-			"I'll show a list of search results from scryfall\\.com, ",
-			"tap one to preview it, then tap ✅ to send it\n",
-			"Easy peasy\\!\n\n",
-			"I support more complex querys, type /help to know more\n\n",
-		)
-
-		bot.Send(m.Chat, message)
+		bot.Send(m.Chat, startMessage, &tb.SendOptions{
+			ReplyMarkup:           makeReplyMarkupForStart(),
+			DisableWebPagePreview: true,
+		})
 	})
 
 	// Handle /help command
 	bot.Handle("/help", func(m *tb.Message) {
-		bot.Send(m.Chat, devMessage)
+		bot.Send(m.Chat, helpMessage, &tb.SendOptions{
+			ReplyMarkup:           makeReplyMarkupForHelp(),
+			DisableWebPagePreview: true,
+		})
 	})
 
 	// Handle all other messages
 	bot.Handle(tb.OnText, func(m *tb.Message) {
-		bot.Send(m.Chat, devMessage)
+		msg := fmt.Sprintf(defaultMessage, m.Text)
+		bot.Send(m.Chat, msg, &tb.SendOptions{
+			ReplyMarkup: makeReplyMarkupForText(m.Text),
+		})
 	})
 
 	return bot, nil
 }
 
-func makePoller() tb.Poller {
+func makePoller(pollerType string) tb.Poller {
 
-	if os.Getenv("POLLER_MODE") == "webhook" {
+	if pollerType == "webhook" {
 		port := os.Getenv("PORT")
 		route := os.Getenv("ROUTE")
 		// url that the web server will listen to
@@ -177,18 +181,20 @@ func isDoubleFacedLayout(layout scryfall.Layout) bool {
 	return false
 }
 
+// create a photo result for a Card
 func newResultFromCard(card scryfall.Card) *tb.PhotoResult {
 	result := &tb.PhotoResult{
 		URL:      card.ImageURIs.Normal,
 		ThumbURL: card.ImageURIs.Small,
 		ResultBase: tb.ResultBase{
 			ID:          card.ID,
-			ReplyMarkup: makeReplyMarkup(card),
+			ReplyMarkup: makeReplyMarkupForResult(card),
 		},
 	}
 	return result
 }
 
+// create a photo result for a face of a double-faced Card
 func newResultFromFace(card scryfall.Card, faceIndex int) *tb.PhotoResult {
 	face := card.CardFaces[faceIndex]
 	faceID := fmt.Sprintf("%s-face-%d", card.ID, faceIndex)
@@ -198,24 +204,54 @@ func newResultFromFace(card scryfall.Card, faceIndex int) *tb.PhotoResult {
 		ThumbURL: face.ImageURIs.Small,
 		ResultBase: tb.ResultBase{
 			ID:          faceID,
-			ReplyMarkup: makeReplyMarkup(card),
+			ReplyMarkup: makeReplyMarkupForResult(card),
 		},
 	}
 	return result
 }
 
-func makeReplyMarkup(card scryfall.Card) *tb.InlineKeyboardMarkup {
-
-	button := tb.InlineButton{Text: "Card Details", URL: card.ScryfallURI}
-
-	matrix := [][]tb.InlineButton{
-		{
-			button,
-		},
-	}
+// replay markup for inline query results
+func makeReplyMarkupForResult(card scryfall.Card) *tb.InlineKeyboardMarkup {
+	btn := tb.InlineButton{Text: "Details", URL: card.ScryfallURI}
+	row := []tb.InlineButton{btn}
+	grid := [][]tb.InlineButton{row}
 
 	return &tb.InlineKeyboardMarkup{
-		InlineKeyboard: matrix,
+		InlineKeyboard: grid,
 	}
+}
 
+// reply markup for /start command
+func makeReplyMarkupForStart() *tb.ReplyMarkup {
+	btn := tb.InlineButton{Text: "Select a chat to see me in action", InlineQuery: "liliana"}
+	row := []tb.InlineButton{btn}
+	grid := [][]tb.InlineButton{row}
+
+	return &tb.ReplyMarkup{
+		InlineKeyboard: grid,
+	}
+}
+
+// reply markup for /help command
+func makeReplyMarkupForHelp() *tb.ReplyMarkup {
+	btn1 := tb.InlineButton{Text: "Advanced Syntax Guide", URL: "https://scryfall.com/docs/syntax"}
+	btn2 := tb.InlineButton{Text: "Learn about inline bots", URL: "https://telegram.org/blog/inline-bots"}
+	row1 := []tb.InlineButton{btn1}
+	row2 := []tb.InlineButton{btn2}
+	grid := [][]tb.InlineButton{row1, row2}
+
+	return &tb.ReplyMarkup{
+		InlineKeyboard: grid,
+	}
+}
+
+// reply markup for all text messages received
+func makeReplyMarkupForText(text string) *tb.ReplyMarkup {
+	btn := tb.InlineButton{Text: "Search this text", InlineQueryChat: text}
+	row := []tb.InlineButton{btn}
+	grid := [][]tb.InlineButton{row}
+
+	return &tb.ReplyMarkup{
+		InlineKeyboard: grid,
+	}
 }
