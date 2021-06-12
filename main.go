@@ -15,12 +15,12 @@ import (
 
 const startMessage = "Hi! I'm your Magic: the gathering bot, I work in inline mode to search for Magic: The Gathering cards in scryfall.com\n" +
 	"I support advanced syntax to filter results like color, type, artist, mana value, etc\n\n" +
-	"tap the button bellow to start using me\n" +
-	"type /help to learn more about inline bots and the advanced syntax you can use to filter your searches"
+	"tap the button bellow to start using me\n\n" +
+	"Type /help to learn more about inline bots and the advanced syntax you can use to filter your searches"
 
 const helpMessage = "Helpful links:"
 
-const defaultMessage = "I only work in inline mode, tab the button to search \"%s\""
+const defaultMessage = "I only work in inline mode, tab the button bellow to search \"%s\""
 
 func main() {
 	env.Load()
