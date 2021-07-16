@@ -107,6 +107,11 @@ func makeBot() (*tb.Bot, error) {
 
 	// Handle all other messages
 	bot.Handle(tb.OnText, func(m *tb.Message) {
+		// answer only to messages coming from private chats
+		if m.Chat.Type != "private" {
+			return
+		}
+
 		msg := fmt.Sprintf(defaultMessage, m.Text)
 		bot.Send(m.Chat, msg, &tb.SendOptions{
 			ReplyMarkup: makeReplyMarkupForText(m.Text),
