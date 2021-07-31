@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"time"
 
 	scryfall "github.com/BlueMonday/go-scryfall"
@@ -21,59 +20,24 @@ const helpMessage = "Helpful links:"
 
 const defaultMessage = "I only work in inline mode, tab the button bellow to search \"%s\""
 
-func makeBot() (*tb.Bot, error) {
-
-	Api := os.Getenv("TELEGRAM_API_URL")
-	token := os.Getenv("TELEGRAM_TOKEN")
-	poller := makePoller(os.Getenv("POLLER_MODE"))
-	isVerbose, _ := strconv.ParseBool(os.Getenv("VERBOSE_OUTPUT"))
-
-	bot, _ := tb.NewBot(tb.Settings{
-		URL:       Api,
-		Token:     token,
-		Poller:    poller,
-		Verbose:   isVerbose,
-		ParseMode: tb.ModeHTML,
-	})
-
-	// Handle inline queries
-	bot.Handle(tb.OnQuery, func(q *tb.Query) {
-		handleInlineQuery(q, bot)
-	})
-
-	// Handle /start command
-	bot.Handle("/start", func(m *tb.Message) {
-		bot.Send(m.Chat, startMessage, &tb.SendOptions{
-			ReplyMarkup:           makeReplyMarkupForStart(),
-			DisableWebPagePreview: true,
-		})
-	})
-
-	// Handle /help command
-	bot.Handle("/help", func(m *tb.Message) {
-		bot.Send(m.Chat, helpMessage, &tb.SendOptions{
-			ReplyMarkup:           makeReplyMarkupForHelp(),
-			DisableWebPagePreview: true,
-		})
-	})
-
-	// Handle all other messages
-	bot.Handle(tb.OnText, func(m *tb.Message) {
-		// answer only to messages coming from private chats
-		if m.Chat.Type != "private" {
-			return
-		}
-
-		msg := fmt.Sprintf(defaultMessage, m.Text)
-		bot.Send(m.Chat, msg, &tb.SendOptions{
-			ReplyMarkup: makeReplyMarkupForText(m.Text),
-		})
-	})
-
-	return bot, nil
+type Bot struct {
+	tb.Bot
 }
 
-func handleInlineQuery(q *tb.Query, bot *tb.Bot) {
+func (bot Bot) SetUpHandlers() {
+	bot.Handle(tb.OnQuery, bot.handleInlineQuery)
+
+	// Handle /start command
+	bot.Handle("/start", bot.handleStartCommand)
+
+	// Handle /help command
+	bot.Handle("/help", bot.handleHelpCommand)
+
+	// Handle all other messages
+	bot.Handle(tb.OnText, bot.handleMessages)
+}
+
+func (bot Bot) handleInlineQuery(q *tb.Query) {
 
 	results := tb.Results{}
 
@@ -81,7 +45,7 @@ func handleInlineQuery(q *tb.Query, bot *tb.Bot) {
 		return
 	}
 
-	cards, _ := cardSearch(q.Text)
+	cards, _ := bot.cardSearch(q.Text)
 
 	if len(cards) == 0 {
 		emptyResult := &tb.ArticleResult{
@@ -94,15 +58,15 @@ func handleInlineQuery(q *tb.Query, bot *tb.Bot) {
 	}
 
 	for _, card := range cards {
-		if isDoubleFacedLayout(card.Layout) {
+		if bot.isDoubleFacedLayout(card.Layout) {
 
-			backFace := newResultFromFace(card, 0)
-			frontFace := newResultFromFace(card, 1)
+			backFace := bot.newResultFromFace(card, 0)
+			frontFace := bot.newResultFromFace(card, 1)
 			results = append(results, frontFace, backFace)
 
 		} else {
 
-			singleResult := newResultFromCard(card)
+			singleResult := bot.newResultFromCard(card)
 			results = append(results, singleResult)
 
 		}
@@ -118,7 +82,34 @@ func handleInlineQuery(q *tb.Query, bot *tb.Bot) {
 	}
 }
 
-func makePoller(pollerType string) tb.Poller {
+func (bot Bot) handleStartCommand(m *tb.Message) {
+	bot.Send(m.Chat, startMessage, &tb.SendOptions{
+		ReplyMarkup:           bot.makeReplyMarkupForStart(),
+		DisableWebPagePreview: true,
+	})
+}
+
+func (bot Bot) handleHelpCommand(m *tb.Message) {
+	bot.Send(m.Chat, helpMessage, &tb.SendOptions{
+		ReplyMarkup:           bot.makeReplyMarkupForHelp(),
+		DisableWebPagePreview: true,
+	})
+}
+
+func (bot Bot) handleMessages(m *tb.Message) {
+	// answer only to messages coming from private chats
+	if m.Chat.Type != "private" {
+		return
+	}
+
+	msg := fmt.Sprintf(defaultMessage, m.Text)
+
+	bot.Send(m.Chat, msg, &tb.SendOptions{
+		ReplyMarkup: bot.makeReplyMarkupForText(m.Text),
+	})
+}
+
+func (bot Bot) MakePoller(pollerType string) tb.Poller {
 
 	if pollerType == "webhook" {
 		port := os.Getenv("PORT")
@@ -134,7 +125,7 @@ func makePoller(pollerType string) tb.Poller {
 	return &tb.LongPoller{Timeout: 10 * time.Second}
 }
 
-func cardSearch(query string) ([]scryfall.Card, error) {
+func (bot Bot) cardSearch(query string) ([]scryfall.Card, error) {
 	client, err := scryfall.NewClient()
 
 	if err != nil {
@@ -171,7 +162,7 @@ func cardSearch(query string) ([]scryfall.Card, error) {
 	return cards, nil
 }
 
-func isDoubleFacedLayout(layout scryfall.Layout) bool {
+func (bot Bot) isDoubleFacedLayout(layout scryfall.Layout) bool {
 	doubleFacedLayouts := []scryfall.Layout{"modal_dfc", "transform", "double_faced_token", "art_series"}
 
 	for _, val := range doubleFacedLayouts {
@@ -184,20 +175,20 @@ func isDoubleFacedLayout(layout scryfall.Layout) bool {
 }
 
 // create a photo result for a Card
-func newResultFromCard(card scryfall.Card) *tb.PhotoResult {
+func (bot Bot) newResultFromCard(card scryfall.Card) *tb.PhotoResult {
 	result := &tb.PhotoResult{
 		URL:      card.ImageURIs.Normal,
 		ThumbURL: card.ImageURIs.Small,
 		ResultBase: tb.ResultBase{
 			ID:          card.ID,
-			ReplyMarkup: makeReplyMarkupForResult(card),
+			ReplyMarkup: bot.makeReplyMarkupForResult(card),
 		},
 	}
 	return result
 }
 
 // create a photo result for a face of a double-faced Card
-func newResultFromFace(card scryfall.Card, faceIndex int) *tb.PhotoResult {
+func (bot Bot) newResultFromFace(card scryfall.Card, faceIndex int) *tb.PhotoResult {
 	face := card.CardFaces[faceIndex]
 	faceID := fmt.Sprintf("%s-face-%d", card.ID, faceIndex)
 
@@ -206,14 +197,14 @@ func newResultFromFace(card scryfall.Card, faceIndex int) *tb.PhotoResult {
 		ThumbURL: face.ImageURIs.Small,
 		ResultBase: tb.ResultBase{
 			ID:          faceID,
-			ReplyMarkup: makeReplyMarkupForResult(card),
+			ReplyMarkup: bot.makeReplyMarkupForResult(card),
 		},
 	}
 	return result
 }
 
 // replay markup for inline query results
-func makeReplyMarkupForResult(card scryfall.Card) *tb.InlineKeyboardMarkup {
+func (bot Bot) makeReplyMarkupForResult(card scryfall.Card) *tb.InlineKeyboardMarkup {
 	btn := tb.InlineButton{Text: "Details", URL: card.ScryfallURI}
 	row := []tb.InlineButton{btn}
 	grid := [][]tb.InlineButton{row}
@@ -224,7 +215,7 @@ func makeReplyMarkupForResult(card scryfall.Card) *tb.InlineKeyboardMarkup {
 }
 
 // reply markup for /start command
-func makeReplyMarkupForStart() *tb.ReplyMarkup {
+func (bot Bot) makeReplyMarkupForStart() *tb.ReplyMarkup {
 	btn := tb.InlineButton{Text: "Select a chat to see me in action", InlineQuery: "liliana"}
 	row := []tb.InlineButton{btn}
 	grid := [][]tb.InlineButton{row}
@@ -235,7 +226,7 @@ func makeReplyMarkupForStart() *tb.ReplyMarkup {
 }
 
 // reply markup for /help command
-func makeReplyMarkupForHelp() *tb.ReplyMarkup {
+func (bot Bot) makeReplyMarkupForHelp() *tb.ReplyMarkup {
 	btn1 := tb.InlineButton{Text: "Advanced Syntax Guide", URL: "https://scryfall.com/docs/syntax"}
 	btn2 := tb.InlineButton{Text: "Learn about inline bots", URL: "https://telegram.org/blog/inline-bots"}
 	row1 := []tb.InlineButton{btn1}
@@ -248,7 +239,7 @@ func makeReplyMarkupForHelp() *tb.ReplyMarkup {
 }
 
 // reply markup for all text messages received
-func makeReplyMarkupForText(text string) *tb.ReplyMarkup {
+func (bot Bot) makeReplyMarkupForText(text string) *tb.ReplyMarkup {
 	btn := tb.InlineButton{Text: "Search this text", InlineQueryChat: text}
 	row := []tb.InlineButton{btn}
 	grid := [][]tb.InlineButton{row}
