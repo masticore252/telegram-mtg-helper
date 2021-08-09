@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	scryfall "github.com/BlueMonday/go-scryfall"
@@ -20,8 +21,43 @@ const helpMessage = "Helpful links:"
 
 const defaultMessage = "I only work in inline mode, tab the button bellow to search \"%s\""
 
+func newBot() (*Bot, error) {
+
+	bot := &Bot{}
+
+	Api := os.Getenv("TELEGRAM_API_URL")
+	token := os.Getenv("TELEGRAM_TOKEN")
+	poller := bot.MakePoller(os.Getenv("POLLER_MODE"))
+	isVerbose, _ := strconv.ParseBool(os.Getenv("VERBOSE_OUTPUT"))
+
+	telebot, err := tb.NewBot(tb.Settings{
+		URL:       Api,
+		Token:     token,
+		Poller:    poller,
+		Verbose:   isVerbose,
+		ParseMode: tb.ModeHTML,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	bot.Bot = *telebot
+
+	scryfallClient, err := scryfall.NewClient()
+
+	if err != nil {
+		return nil, err
+	}
+
+	bot.client = scryfallClient
+
+	return bot, nil
+}
+
 type Bot struct {
 	tb.Bot
+	client *scryfall.Client
 }
 
 func (bot Bot) SetUpHandlers() {
@@ -126,13 +162,8 @@ func (bot Bot) MakePoller(pollerType string) tb.Poller {
 }
 
 func (bot Bot) cardSearch(query string) ([]scryfall.Card, error) {
-	client, err := scryfall.NewClient()
 
-	if err != nil {
-		return nil, err
-	}
-
-	context := context.Background()
+	ctx := context.Background()
 
 	options := scryfall.SearchCardsOptions{
 		// Unique:        scryfall.UniqueModeCards,
@@ -140,8 +171,8 @@ func (bot Bot) cardSearch(query string) ([]scryfall.Card, error) {
 		// Dir:           scryfall.DirAuto,
 	}
 
-	result, err := client.SearchCards(
-		context,
+	result, err := bot.client.SearchCards(
+		ctx,
 		query,
 		options,
 	)
