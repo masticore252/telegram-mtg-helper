@@ -63,13 +63,10 @@ type Bot struct {
 func (bot Bot) SetUpHandlers() {
 	bot.Handle(tb.OnQuery, bot.handleInlineQuery)
 
-	// Handle /start command
 	bot.Handle("/start", bot.handleStartCommand)
 
-	// Handle /help command
 	bot.Handle("/help", bot.handleHelpCommand)
 
-	// Handle all other messages
 	bot.Handle(tb.OnText, bot.handleMessages)
 }
 
@@ -134,7 +131,7 @@ func (bot Bot) handleHelpCommand(m *tb.Message) {
 
 func (bot Bot) handleMessages(m *tb.Message) {
 	// answer only to messages coming from private chats
-	if m.Chat.Type != "private" {
+	if !m.Private() {
 		return
 	}
 
